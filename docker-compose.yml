@@ -1,0 +1,61 @@
+---
+version: "3.9"
+
+services:
+    database:
+        image: postgres
+        container_name: database
+        ports:
+          - 5432:5432
+        restart: always
+        environment:
+            POSTGRES_DB: django
+            POSTGRES_USER: django
+            POSTGRES_PASSWORD: django
+        networks:
+          - netbackend
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    frontend:
+        image: localhost:5000/frontend_nginx_2
+        container_name: frontend
+        ports:
+          - 3000:80
+        restart: always 
+        depends_on:
+          - backend
+        networks:
+          - netfrontend
+    
+    backend:
+        image: localhost:5000/backend
+        command: sh -c "python manage.py migrate; python manage.py loaddata bbk_data.json && python manage.py runserver 0.0.0.0:8000"
+        container_name: backend
+        ports:
+          - 8000:8000
+        restart: always
+        depends_on:
+          database:
+            condition: service_healthy
+        networks:
+          - netfrontend
+          - netbackend
+
+networks:
+    netbackend:
+      driver: bridge
+      ipam:
+         config:
+            - subnet: 192.168.40.0/24
+              gateway: 192.168.40.1
+
+    netfrontend:
+      driver: bridge
+      ipam:
+          config:
+            - subnet: 192.168.25.0/24
+              gateway: 192.168.25.1
